@@ -209,6 +209,15 @@ class Player{
                 return true;
             }
         }
-
+        
+    }
+    static playing(frame){
+        // まず自由落下を開始する
+        // 下キーが押されていた場合、それ込みで自由落下させる
+        if(this.falling(this.keyStatus.down)) {
+            // 落下が終わっていたら、ぷよを固定する
+            this.setPuyoPosition();
+            return 'fix';
+        }
     }
 }
