@@ -327,7 +327,102 @@ class Player{
                         cy = -1;
                     }
                 }
+            } else if(rotaion === 270) {
+                // 下から右に回すときは、右にブロックがあれば左に移動する必要があるのでまず確認する
+                if(y + 1 < 0 || x + 1 < 0 || x + 1 >= Config.stageCols || Stage.board[y + 1][x + 1]) {
+                    if(y + 1 >= 0) {
+                        // ブロックがある。左に1個ずれる
+                        cx = -1;
+                    }
+                }
+                // 左にずれる必要があるとき、左にもブロックがあれば回転できないので確認する
+                if(cx === -1) {
+                    if(y + 1 < 0 || x -1 < 0 || x - 1 >= Config.stageCols || Stageboard[y + 1][x - 1]) {
+                        if(y +1 >= 0) {
+                            // ブロックがある。回転できなかった
+                            canRotate = false;
+                        }
+                    }
+                }
             }
+
+            if(canRotate) {
+                // 上に移動する必要があるときは、一気に上げてしまう
+                if(cy === -1) {
+                    if(this.groundFrame > 0) {
+                        // 接地しているなら1段引き上げる
+                        this.puyoStatus.y -= 1;
+                        this.groundFrame = 0;
+                    }
+                    this.puyoStatus.top = this.puyoStatus.y * Config.puyoImgWidth;
+                }
+                // 回すことができるので、回転後の情報をセットして回転状態にする
+                this.actionStartFrame = frame;
+                this.rotateBeforeLeft = x * Config.puyoImgHeight;
+                this.rotateAfterLeft = (x + cx) * Config.puyoImgHeight;
+                this.rotateFromRotation = this.puyoStatus.rotation;
+                // 次の状態を先に設定しておく
+                this.puyoStatus.x += cx;
+                const distRotation = (this.puyoStatus.rotation + 90) % 360;
+                const dCombi = [[1,0], [0, -1], [-1, 0], [0, 1]][distRotation / 90];
+                this.puyoStatus.dx = dCombi[0];
+                this.puyoStatus.dy = dCombi[1];
+                return 'rotating';
+            }
+        }
+        return 'playing';
+    }
+    static moving(frame) {
+        // 移動中も自然落下はさせる
+        this.falling();
+        const ration = Math.min(1, (frame - this.actionStartFrame) / Config.playerMoveFrame);
+        this.puyoStatus.left = ration * (this.moveDestination - this.moveSource) + this.moveSource;
+        this.setPuyoPosition();
+        if(ration === 1) {
+            return false;
+        }
+        return true;
+    }
+    static rotating(frame) {
+        // 回転中も自然落下はさせる
+        this.falling();
+        const ration = Math.min(1, (frame - this.actionStartFrame) / Config.playerRotateFrame);
+        this.puyoStatus.left = (this.rotateAfterLeft - this.rotateBeforeLeft) * ratio + this.rotateBeforeLeft;
+        this.puyoStatus.rotation = this.rotateFromRotation + ration * 90;
+        this.setPuyoPosition();
+        if(ratio === 1) {
+            this.puyoStatus.rotation = (this.rotateFromRotation + 90) % 360;
+            return false;
+        }
+        return true;
+    }
+
+    static fix() {
+        // 現在のぷよをステージ上に配置する
+        const x = this.puyoStatus.x;
+        const y = this.puyoStatus.y;
+        const dx = this.puyoStatus.dx;
+        const dy = this.puyoStatus.dy;
+        if(y >= 0){
+            // 画面外のぷよは消してしまう
+            Stage.setPuyo(x, y, this.centerPuyo);
+            Stage.puyoCount++;
+        }
+        if(y + dy >= 0) {
+            // 画面外のぷよは消してしまう
+            Stage.setPuyo(x + dx, y + dy, this.movablePuyo);
+            Stage.puyoCount++;
+        }
+        // 操作用に作成したぷよ画像を消す
+        Stage.stageElement.removeChild(this.centerPuyoElement);
+        Stage.stageElement.removeChild(this.movablePuyoElement);
+        this.centerPuyoElement = null;
+        this.movablePuyoElement = null;
+    }
+
+    static batankyu() {
+        if(this.keyStatus.up) {
+            location.reload()
         }
     }
 }
